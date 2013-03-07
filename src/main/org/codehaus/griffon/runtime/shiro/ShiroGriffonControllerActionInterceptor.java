@@ -30,7 +30,9 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static griffon.util.ConfigUtils.getConfigValueAsString;
 
@@ -115,23 +117,23 @@ public class ShiroGriffonControllerActionInterceptor extends AbstractGriffonCont
         String fqActionName = qualifyActionName(controller, actionName);
         if (requirementsPerAction.get(fqActionName) != null) return;
 
-        List<RequirementConfiguration> requirements = new ArrayList<RequirementConfiguration>();
+        Map<Requirement, RequirementConfiguration> requirements = new LinkedHashMap<Requirement, RequirementConfiguration>();
 
         // grab global requirements from controller
+        processRequiresGuest(controller.getClass().getAnnotation(RequiresGuest.class), requirements);
         processRequiresAuthentication(controller.getClass().getAnnotation(RequiresAuthentication.class), requirements);
         processRequiresRoles(controller.getClass().getAnnotation(RequiresRoles.class), requirements);
         processRequiresPermissions(controller.getClass().getAnnotation(RequiresPermissions.class), requirements);
-        processRequiresGuest(controller.getClass().getAnnotation(RequiresGuest.class), requirements);
 
         // grab local requirements from action
+        processRequiresGuest(annotatedElement.getAnnotation(RequiresGuest.class), requirements);
         processRequiresAuthentication(annotatedElement.getAnnotation(RequiresAuthentication.class), requirements);
         processRequiresRoles(annotatedElement.getAnnotation(RequiresRoles.class), requirements);
         processRequiresPermissions(annotatedElement.getAnnotation(RequiresPermissions.class), requirements);
-        processRequiresGuest(annotatedElement.getAnnotation(RequiresGuest.class), requirements);
 
         requirementsPerAction.put(fqActionName, new ActionRequirement(
             fqActionName,
-            requirements.toArray(new RequirementConfiguration[requirements.size()])
+            requirements.values().toArray(new RequirementConfiguration[requirements.size()])
         ));
     }
 
@@ -139,28 +141,32 @@ public class ShiroGriffonControllerActionInterceptor extends AbstractGriffonCont
         return controller.getClass().getName() + "." + actionName;
     }
 
-    private void processRequiresAuthentication(RequiresAuthentication annotation, List<RequirementConfiguration> requirements) {
+    private void processRequiresAuthentication(RequiresAuthentication annotation, Map<Requirement, RequirementConfiguration> requirements) {
         if (annotation == null) return;
-        requirements.add(new RequirementConfiguration(Requirement.AUTHENTICATION));
+        requirements.remove(Requirement.GUEST);
+        requirements.put(Requirement.AUTHENTICATION, new RequirementConfiguration(Requirement.AUTHENTICATION));
     }
 
-    private void processRequiresRoles(RequiresRoles annotation, List<RequirementConfiguration> requirements) {
+    private void processRequiresRoles(RequiresRoles annotation, Map<Requirement, RequirementConfiguration> requirements) {
         if (annotation == null) return;
         String[] value = annotation.value();
         Logical logical = annotation.logical();
-        requirements.add(new RequirementConfiguration(Requirement.ROLES, value, logical));
+        requirements.remove(Requirement.GUEST);
+        requirements.put(Requirement.ROLES, new RequirementConfiguration(Requirement.ROLES, value, logical));
     }
 
-    private void processRequiresPermissions(RequiresPermissions annotation, List<RequirementConfiguration> requirements) {
+    private void processRequiresPermissions(RequiresPermissions annotation, Map<Requirement, RequirementConfiguration> requirements) {
         if (annotation == null) return;
         String[] value = annotation.value();
         Logical logical = annotation.logical();
-        requirements.add(new RequirementConfiguration(Requirement.PERMISSIONS, value, logical));
+        requirements.remove(Requirement.GUEST);
+        requirements.put(Requirement.PERMISSIONS, new RequirementConfiguration(Requirement.PERMISSIONS, value, logical));
     }
 
-    private void processRequiresGuest(RequiresGuest annotation, List<RequirementConfiguration> requirements) {
+    private void processRequiresGuest(RequiresGuest annotation, Map<Requirement, RequirementConfiguration> requirements) {
         if (annotation == null) return;
-        requirements.add(new RequirementConfiguration(Requirement.GUEST));
+        requirements.clear();
+        requirements.put(Requirement.GUEST, new RequirementConfiguration(Requirement.GUEST));
     }
 
     private enum Requirement {
