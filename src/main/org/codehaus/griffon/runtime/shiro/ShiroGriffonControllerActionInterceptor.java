@@ -137,10 +137,6 @@ public class ShiroGriffonControllerActionInterceptor extends AbstractGriffonCont
         ));
     }
 
-    private String qualifyActionName(GriffonController controller, String actionName) {
-        return controller.getClass().getName() + "." + actionName;
-    }
-
     private void processRequiresAuthentication(RequiresAuthentication annotation, Map<Requirement, RequirementConfiguration> requirements) {
         if (annotation == null) return;
         requirements.remove(Requirement.GUEST);
